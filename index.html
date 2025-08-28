@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Learn the Spanish Alphabet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family: Arial, sans-serif; background:#f8f9fa; text-align:center; margin:0; padding:20px;}
+  h1{color:#2c3e50;}
+  p.instruction{font-size:18px;}
+  .options{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; justify-content:center; margin-top:20px;}
+  .btn-option{padding:15px; font-size:24px; border-radius:8px; border:2px solid #ccc; cursor:pointer; background:white; transition:0.3s;}
+  .btn-option:hover{background:#e0f7fa;}
+  .btn{background:#4CAF50;color:white;padding:12px 25px;margin:15px;font-size:16px;border:none;border-radius:8px;cursor:pointer;}
+  .btn:hover{background:#45a049;}
+  #exercise-counter{font-size:20px; margin-top:15px;}
+  #final-message{font-size:40px; color:#d6336c; font-weight:bold; margin-top:30px;}
+  #confetti-canvas{position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:9999;}
+</style>
+</head>
+<body>
+
+<h1>Learn the Spanish Alphabet</h1>
+<p class="instruction">Listen to the letter sound and choose the correct letter from the options below.</p>
+
+<button class="btn" id="play-btn">Play Letter</button>
+<button class="btn" id="repeat-btn">Repeat Sound</button>
+<button class="btn" id="restart-btn">Restart</button>
+
+<div class="options" id="options-container"></div>
+<div id="exercise-counter">Exercise 1 / 27</div>
+<h1 id="final-message" style="display:none;">Amazing! Good Job!</h1>
+<canvas id="confetti-canvas"></canvas>
+
+<script>
+const LETTERS = [..."ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"];
+const LETTER_SOUNDS = {
+  "A":"a","B":"bé","C":"ce","D":"dé","E":"é","F":"éfe","G":"gé","H":"hache","I":"í","J":"jota",
+  "K":"ká","L":"e le","M":"é me","N":"éne","Ñ":"é ñe","O":"ó","P":"pé","Q":"q","R":"erre","S":"ése",
+  "T":"té","U":"ú","V":"ú ve","W":"doble ú ve","X":"equis","Y":"ye","Z":"zeta"
+};
+
+let exerciseIndex = 0; // 0-26
+let currentLetter = null;
+let spanishVoice = null;
+let correctSelected = false;
+
+// Array de letras aleatorias para la ronda
+let lettersPool = [];
+
+// Confetti
+let confettiInstance = null;
+let confettiRunning = false;
+
+// ===== Initialize Spanish voice =====
+function initSpanishVoice(){
+  const pick = ()=>{
+    const voices = speechSynthesis.getVoices() || [];
+    spanishVoice = voices.find(v=>/es[-_]/i.test(v.lang))||voices.find(v=>v.lang==="es-ES")||null;
+  };
+  pick();
+  if(!spanishVoice) window.speechSynthesis.onvoiceschanged=pick;
+}
+initSpanishVoice();
+
+// ===== Play letter =====
+function playLetter(){
+  if(correctSelected) return;
+  if(!currentLetter) selectCurrentExercise();
+  speak(currentLetter);
+}
+
+// ===== Repeat sound =====
+function repeatSound(){
+  if(!currentLetter) return;
+  speak(currentLetter);
+}
+
+// ===== Speak function =====
+function speak(letter){
+  const utter = new SpeechSynthesisUtterance(LETTER_SOUNDS[letter]);
+  utter.lang="es-ES";
+  if(spanishVoice) utter.voice = spanishVoice;
+  utter.rate=0.9; utter.pitch=1;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+
+// Sonido
+function playSound(text) {
+    let utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "es-ES";
+    utterance.volume = 1; // volumen máximo
+    utterance.rate = 0.5;
+    utterance.pitch = 0.5;
+    speechSynthesis.speak(utterance);
+}
+
+
+
+
+
+// ===== Initialize letters pool =====
+function initLettersPool(){
+  lettersPool = [...LETTERS].sort(()=>Math.random()-0.5); // mezcla aleatoria
+  exerciseIndex = 0;
+}
+
+// ===== Select current exercise letter =====
+function selectCurrentExercise(){
+  if(exerciseIndex>=LETTERS.length){
+    showWin();
+    return;
+  }
+  if(!lettersPool.length) initLettersPool();
+  currentLetter = lettersPool[exerciseIndex];
+  correctSelected = false;
+  generateOptions();
+  updateCounter();
+}
+
+// ===== Generate 5 options =====
+function generateOptions(){
+  const container = document.getElementById("options-container");
+  container.innerHTML="";
+  let options = [currentLetter];
+  while(options.length<5){
+    const rand = LETTERS[Math.floor(Math.random()*LETTERS.length)];
+    if(!options.includes(rand)) options.push(rand);
+  }
+  options = options.sort(()=>Math.random()-0.5);
+  options.forEach(opt=>{
+    const btn = document.createElement("button");
+    btn.className="btn-option";
+    btn.textContent = opt;
+    btn.addEventListener("click",()=>checkAnswer(opt));
+    container.appendChild(btn);
+  });
+}
+
+// ===== Check answer =====
+function checkAnswer(selected){
+  if(selected===currentLetter){
+    correctSelected = true;
+    document.querySelectorAll(".btn-option").forEach(btn=>{
+      if(btn.textContent===currentLetter){
+        btn.style.background="#4CAF50"; 
+        btn.style.color="white";
+      }
+    });
+    setTimeout(()=>{
+      exerciseIndex++;
+      selectCurrentExercise();
+    },500);
+  } else {
+    alert("Try again!");
+  }
+}
+
+// ===== Update exercise counter =====
+function updateCounter(){
+  const counter = document.getElementById("exercise-counter");
+  counter.textContent = `Exercise ${exerciseIndex+1} / 27`;
+}
+
+// ===== Restart =====
+function restartGame(){
+  stopConfetti();
+  initLettersPool();
+  currentLetter = null;
+  correctSelected = false;
+  document.getElementById("final-message").style.display="none";
+  selectCurrentExercise();
+}
+
+// ===== Win =====
+function showWin(){
+  document.getElementById("final-message").style.display="block";
+  startConfetti();
+}
+
+// ===== Confetti =====
+function startConfetti(){
+  if(confettiInstance) return;
+  const canvas=document.getElementById("confetti-canvas");
+  const ctx=canvas.getContext("2d");
+  const particles=[];
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  for(let i=0;i<300;i++){
+    particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*6+4,s:Math.random()*2+1,dx:Math.random()*2-1,color:`hsl(${Math.floor(Math.random()*360)} 90% 60% / 0.85)`});
+  }
+  confettiRunning = true;
+  confettiInstance = {clear:()=>{
+    confettiRunning=false;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    confettiInstance=null;
+  }};
+  function draw(){
+    if(!confettiRunning) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(const p of particles){
+      p.y+=p.s; p.x+=p.dx;
+      if(p.y>canvas.height){p.y=-10;p.x=Math.random()*canvas.width;}
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function stopConfetti(){ if(confettiInstance) confettiInstance.clear(); }
+
+// ===== Initialize first exercise =====
+initLettersPool();
+selectCurrentExercise();
+
+// Botones
+document.getElementById("play-btn").addEventListener("click", playLetter);
+document.getElementById("repeat-btn").addEventListener("click", repeatSound);
+document.getElementById("restart-btn").addEventListener("click", restartGame);
+
+</script>
+
+</body>
+</html>
